@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Double Pendulum</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0f;
+    --panel: #0f0f1a;
+    --border: #1e1e30;
+    --accent: #00ffb3;
+    --accent2: #ff3d6e;
+    --accent3: #7b5ea7;
+    --text: #e8e8f0;
+    --muted: #5a5a7a;
+    --trace1: #00ffb3;
+    --trace2: #ff3d6e;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    overflow: hidden;
+  }
+
+  #app {
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    height: 100vh;
+    max-height: 100dvh;
+  }
+
+  /* HEADER */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+    flex-shrink: 0;
+    gap: 8px;
+  }
+  header h1 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: clamp(13px, 3vw, 18px);
+    letter-spacing: -0.03em;
+    white-space: nowrap;
+  }
+  header h1 span { color: var(--accent); }
+
+  .header-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  button {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    padding: 6px 14px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+  }
+  button:hover { border-color: var(--accent); color: var(--accent); }
+  button.primary {
+    background: var(--accent);
+    color: #000;
+    border-color: var(--accent);
+    font-weight: 700;
+  }
+  button.primary:hover { background: #00e0a0; }
+  button.danger { border-color: var(--accent2); color: var(--accent2); }
+  button.danger:hover { background: var(--accent2); color: #fff; }
+
+  /* MAIN LAYOUT */
+  main {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  .pane {
+    position: relative;
+    overflow: hidden;
+    border-right: 1px solid var(--border);
+  }
+  .pane:last-child { border-right: none; }
+
+  .pane-label {
+    position: absolute;
+    top: 10px;
+    left: 12px;
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    z-index: 10;
+    text-transform: uppercase;
+  }
+
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* FOOTER / CONTROLS */
+  footer {
+    border-top: 1px solid var(--border);
+    background: var(--panel);
+    padding: 10px 14px;
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+  }
+
+  .param-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 140px;
+  }
+
+  .param-group label {
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    white-space: nowrap;
+  }
+
+  .param-group input[type=range] {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 2px;
+    background: var(--border);
+    outline: none;
+    cursor: pointer;
+  }
+  .param-group input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+  }
+  .param-group .val {
+    font-size: 10px;
+    color: var(--accent);
+    min-width: 30px;
+    text-align: right;
+  }
+
+  /* SETUP overlay hint */
+  #setup-hint {
+    position: absolute;
+    bottom: 12px;
+    left: 0; right: 0;
+    text-align: center;
+    font-size: 10px;
+    color: var(--muted);
+    pointer-events: none;
+    letter-spacing: 0.05em;
+    transition: opacity 0.3s;
+  }
+
+  /* Mode indicator */
+  #mode-badge {
+    font-size: 9px;
+    padding: 3px 8px;
+    border: 1px solid var(--accent3);
+    color: var(--accent3);
+    letter-spacing: 0.1em;
+    white-space: nowrap;
+  }
+
+  /* Stats */
+  #stats {
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+  }
+
+  #btn-inf {
+    padding: 4px 8px;
+    font-size: 14px;
+    border-color: var(--accent3);
+    color: var(--accent3);
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  #btn-inf.active {
+    background: var(--accent3);
+    color: #fff;
+    border-color: var(--accent3);
+  }
+
+  /* Mobile layout: stack vertically */
+  @media (max-width: 600px) {
+    main {
+      grid-template-columns: 1fr;
+      grid-template-rows: 1fr 1fr;
+    }
+    .pane { border-right: none; border-bottom: 1px solid var(--border); }
+    .pane:last-child { border-bottom: none; }
+    footer { gap: 8px; padding: 8px 10px; }
+    .param-group { min-width: 110px; }
+    header { padding: 8px 10px; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>DOUBLE <span>PENDULUM</span></h1>
+    <div class="header-controls">
+      <span id="mode-badge">SETUP</span>
+      <span id="stats"></span>
+      <button id="btn-simulate" class="primary">▶ SIMULATE</button>
+      <button id="btn-reset" class="danger">↺ RESET</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- LEFT: Pendulum pane -->
+    <div class="pane" id="pendulum-pane">
+      <span class="pane-label">PENDULUM — drag to position</span>
+      <canvas id="pendulum-canvas"></canvas>
+      <div id="setup-hint">drag arm 1 then arm 2 · tap simulate</div>
+    </div>
+
+    <!-- RIGHT: Graph pane -->
+    <div class="pane" id="graph-pane">
+      <span class="pane-label">PHASE TRACE — θ₁ vs θ₂</span>
+      <canvas id="graph-canvas"></canvas>
+    </div>
+  </main>
+
+  <footer>
+    <div class="param-group">
+      <label>L1</label>
+      <input type="range" id="sl1" min="0.3" max="1" step="0.05" value="0.7">
+      <span class="val" id="vl1">0.70</span>
+    </div>
+    <div class="param-group">
+      <label>L2</label>
+      <input type="range" id="sl2" min="0.3" max="1" step="0.05" value="0.7">
+      <span class="val" id="vl2">0.70</span>
+    </div>
+    <div class="param-group">
+      <label>M1</label>
+      <input type="range" id="sm1" min="0.5" max="3" step="0.1" value="1">
+      <span class="val" id="vm1">1.0</span>
+    </div>
+    <div class="param-group">
+      <label>M2</label>
+      <input type="range" id="sm2" min="0.5" max="3" step="0.1" value="1">
+      <span class="val" id="vm2">1.0</span>
+    </div>
+    <div class="param-group">
+      <label>SPEED</label>
+      <input type="range" id="sspeed" min="0.5" max="4" step="0.5" value="1">
+      <span class="val" id="vspeed">1.0×</span>
+    </div>
+    <div class="param-group">
+      <label>TRACE</label>
+      <input type="range" id="strace" min="200" max="5000" step="100" value="2000">
+      <span class="val" id="vtrace">2000</span>
+      <button id="btn-inf" title="Toggle infinite trace">∞</button>
+    </div>
+    <button id="btn-defaults">↺ DEFAULTS</button>
+  </footer>
+</div>
+
+<script>
+// ─── Physics ───────────────────────────────────────────────────────────────
+// Correct Lagrangian equations of motion for a double pendulum (no friction).
+// Reference: https://scienceworld.wolfram.com/physics/DoublePendulum.html
+const g = 9.81;
+
+function derivatives(state, L1, L2, m1, m2) {
+  const [th1, th2, w1, w2] = state;
+  const delta = th1 - th2;
+  const sinD  = Math.sin(delta);
+  const cosD  = Math.cos(delta);
+  const sin1  = Math.sin(th1);
+  const sin2  = Math.sin(th2);
+  const M     = m1 + m2;
+
+  // Shared denominator terms
+  const D1 = L1 * (2*m1 + m2 - m2 * Math.cos(2*delta));
+  const D2 = L2 * (2*m1 + m2 - m2 * Math.cos(2*delta));
+
+  // Angular acceleration of bob 1
+  const a1 = (
+    - m2 * g * Math.sin(th1 - 2*th2)
+    - 2 * sinD * m2 * (w2*w2*L2 + w1*w1*L1*cosD)
+    - M * g * sin1
+  ) / D1;
+
+  // Angular acceleration of bob 2
+  const a2 = (
+    2 * sinD * (
+      w1*w1*L1*M
+      + g*M*Math.cos(th1)
+      + w2*w2*L2*m2*cosD
+    )
+  ) / D2;
+
+  return [w1, w2, a1, a2];
+}
+
+function rk4Step(state, dt, L1, L2, m1, m2) {
+  const k1 = derivatives(state,                                   L1, L2, m1, m2);
+  const k2 = derivatives(state.map((v,i) => v + k1[i]*dt*0.5),  L1, L2, m1, m2);
+  const k3 = derivatives(state.map((v,i) => v + k2[i]*dt*0.5),  L1, L2, m1, m2);
+  const k4 = derivatives(state.map((v,i) => v + k3[i]*dt),      L1, L2, m1, m2);
+  return state.map((v,i) => v + (dt/6)*(k1[i] + 2*k2[i] + 2*k3[i] + k4[i]));
+}
+
+// ─── State ─────────────────────────────────────────────────────────────────
+let simState = { th1: Math.PI*0.6, th2: Math.PI*0.4, w1: 0, w2: 0 };
+let simRunning = false;
+let animId = null;
+let tracePoints = []; // [{th1,th2}]
+let setupPhase = 1; // 1=dragging arm1, 2=dragging arm2
+let isDragging = false;
+let simTime = 0;
+
+// Params
+let L1 = 0.7, L2 = 0.7, m1 = 1, m2 = 1, speed = 1, maxTrace = 2000;
+
+// ─── Canvases ───────────────────────────────────────────────────────────────
+const pCanvas = document.getElementById('pendulum-canvas');
+const pCtx = pCanvas.getContext('2d');
+const gCanvas = document.getElementById('graph-canvas');
+const gCtx = gCanvas.getContext('2d');
+
+function resizeCanvases() {
+  const pp = document.getElementById('pendulum-pane');
+  const gp = document.getElementById('graph-pane');
+  pCanvas.width = pp.clientWidth * devicePixelRatio;
+  pCanvas.height = pp.clientHeight * devicePixelRatio;
+  pCanvas.style.width = pp.clientWidth + 'px';
+  pCanvas.style.height = pp.clientHeight + 'px';
+  gCanvas.width = gp.clientWidth * devicePixelRatio;
+  gCanvas.height = gp.clientHeight * devicePixelRatio;
+  gCanvas.style.width = gp.clientWidth + 'px';
+  gCanvas.style.height = gp.clientHeight + 'px';
+  drawAll();
+}
+
+// ─── Geometry helpers ────────────────────────────────────────────────────────
+function pivot() {
+  return { x: pCanvas.width/2, y: pCanvas.height*0.38 };
+}
+
+function scale() {
+  return Math.min(pCanvas.width, pCanvas.height) * 0.34;
+}
+
+function getPositions() {
+  const p = pivot(), s = scale();
+  const x1 = p.x + L1*s*Math.sin(simState.th1);
+  const y1 = p.y + L1*s*Math.cos(simState.th1);
+  const x2 = x1 + L2*s*Math.sin(simState.th2);
+  const y2 = y1 + L2*s*Math.cos(simState.th2);
+  return { p, x1, y1, x2, y2, s };
+}
+
+// ─── Draw Pendulum ────────────────────────────────────────────────────────────
+function drawPendulum() {
+  const w = pCanvas.width, h = pCanvas.height;
+  pCtx.clearRect(0,0,w,h);
+
+  // Grid
+  pCtx.strokeStyle = 'rgba(30,30,48,0.8)';
+  pCtx.lineWidth = 1;
+  const step = scale() * 0.25;
+  const p0 = pivot();
+  for (let x = p0.x % step; x < w; x += step) {
+    pCtx.beginPath(); pCtx.moveTo(x,0); pCtx.lineTo(x,h); pCtx.stroke();
+  }
+  for (let y = p0.y % step; y < h; y += step) {
+    pCtx.beginPath(); pCtx.moveTo(0,y); pCtx.lineTo(w,y); pCtx.stroke();
+  }
+
+  const { p, x1, y1, x2, y2, s } = getPositions();
+
+  // Arms
+  pCtx.lineWidth = 2.5 * devicePixelRatio;
+  pCtx.strokeStyle = '#3a3a5c';
+  pCtx.beginPath(); pCtx.moveTo(p.x, p.y); pCtx.lineTo(x1, y1); pCtx.stroke();
+  pCtx.beginPath(); pCtx.moveTo(x1, y1); pCtx.lineTo(x2, y2); pCtx.stroke();
+
+  // Pivot
+  pCtx.beginPath();
+  pCtx.arc(p.x, p.y, 5*devicePixelRatio, 0, Math.PI*2);
+  pCtx.fillStyle = '#888';
+  pCtx.fill();
+
+  // Bob 1
+  const r1 = (8 + m1*4) * devicePixelRatio;
+  pCtx.beginPath();
+  pCtx.arc(x1, y1, r1, 0, Math.PI*2);
+  const g1 = pCtx.createRadialGradient(x1-r1*0.3, y1-r1*0.3, 0, x1, y1, r1);
+  g1.addColorStop(0, '#00ffb3');
+  g1.addColorStop(1, '#00a070');
+  pCtx.fillStyle = g1;
+  pCtx.fill();
+  if (!simRunning && setupPhase === 1) {
+    pCtx.strokeStyle = 'rgba(0,255,179,0.5)';
+    pCtx.lineWidth = 2*devicePixelRatio;
+    pCtx.stroke();
+  }
+
+  // Bob 2
+  const r2 = (8 + m2*4) * devicePixelRatio;
+  pCtx.beginPath();
+  pCtx.arc(x2, y2, r2, 0, Math.PI*2);
+  const g2 = pCtx.createRadialGradient(x2-r2*0.3, y2-r2*0.3, 0, x2, y2, r2);
+  g2.addColorStop(0, '#ff3d6e');
+  g2.addColorStop(1, '#a0002e');
+  pCtx.fillStyle = g2;
+  pCtx.fill();
+  if (!simRunning && setupPhase === 2) {
+    pCtx.strokeStyle = 'rgba(255,61,110,0.5)';
+    pCtx.lineWidth = 2*devicePixelRatio;
+    pCtx.stroke();
+  }
+
+  // Setup labels when not running
+  if (!simRunning) {
+    pCtx.font = `${9*devicePixelRatio}px Space Mono`;
+    pCtx.fillStyle = setupPhase===1 ? 'var(--accent)' : '#5a5a7a';
+    pCtx.fillText('① arm 1', x1 + r1 + 4*devicePixelRatio, y1 + 4*devicePixelRatio);
+    pCtx.fillStyle = setupPhase===2 ? '#ff3d6e' : '#5a5a7a';
+    pCtx.fillText('② arm 2', x2 + r2 + 4*devicePixelRatio, y2 + 4*devicePixelRatio);
+  }
+
+  // Angle annotations
+  if (!simRunning) {
+    pCtx.strokeStyle = 'rgba(0,255,179,0.2)';
+    pCtx.lineWidth = 1;
+    pCtx.setLineDash([4,4]);
+    pCtx.beginPath(); pCtx.moveTo(p.x, p.y); pCtx.lineTo(p.x, p.y + s*L1*0.7); pCtx.stroke();
+    pCtx.beginPath(); pCtx.moveTo(x1, y1); pCtx.lineTo(x1, y1 + s*L2*0.7); pCtx.stroke();
+    pCtx.setLineDash([]);
+    pCtx.font = `${8*devicePixelRatio}px Space Mono`;
+    pCtx.fillStyle = '#00ffb3aa';
+    pCtx.fillText(`θ₁=${(simState.th1*180/Math.PI).toFixed(1)}°`, p.x+8*devicePixelRatio, p.y+18*devicePixelRatio);
+    pCtx.fillStyle = '#ff3d6eaa';
+    pCtx.fillText(`θ₂=${(simState.th2*180/Math.PI).toFixed(1)}°`, x1+8*devicePixelRatio, y1+18*devicePixelRatio);
+  }
+}
+
+// ─── Draw Graph ────────────────────────────────────────────────────────────────
+function drawGraph() {
+  const w = gCanvas.width, h = gCanvas.height;
+  gCtx.clearRect(0,0,w,h);
+
+  const pad = 32*devicePixelRatio;
+  const cw = w - 2*pad, ch = h - 2*pad;
+
+  // Grid
+  gCtx.strokeStyle = 'rgba(30,30,48,0.9)';
+  gCtx.lineWidth = 1;
+  const gridN = 8;
+  for (let i = 0; i <= gridN; i++) {
+    const x = pad + cw*i/gridN;
+    const y = pad + ch*i/gridN;
+    gCtx.beginPath(); gCtx.moveTo(x, pad); gCtx.lineTo(x, pad+ch); gCtx.stroke();
+    gCtx.beginPath(); gCtx.moveTo(pad, y); gCtx.lineTo(pad+cw, y); gCtx.stroke();
+  }
+
+  // Axes
+  gCtx.strokeStyle = 'rgba(90,90,122,0.6)';
+  gCtx.lineWidth = 1.5;
+  const cx = pad + cw/2, cy = pad + ch/2;
+  gCtx.beginPath(); gCtx.moveTo(cx, pad); gCtx.lineTo(cx, pad+ch); gCtx.stroke();
+  gCtx.beginPath(); gCtx.moveTo(pad, cy); gCtx.lineTo(pad+cw, cy); gCtx.stroke();
+
+  // Axis labels
+  gCtx.font = `${8*devicePixelRatio}px Space Mono`;
+  gCtx.fillStyle = '#5a5a7a';
+  gCtx.fillText('−π', pad, cy - 4*devicePixelRatio);
+  gCtx.fillText('+π', pad+cw-18*devicePixelRatio, cy - 4*devicePixelRatio);
+  gCtx.fillText('−π', cx+4*devicePixelRatio, pad+10*devicePixelRatio);
+  gCtx.fillText('+π', cx+4*devicePixelRatio, pad+ch);
+  gCtx.fillStyle = '#00ffb355';
+  gCtx.fillText('θ₁ →', pad+cw - 24*devicePixelRatio, pad+ch + 18*devicePixelRatio);
+  gCtx.fillStyle = '#ff3d6e55';
+  gCtx.save();
+  gCtx.translate(12*devicePixelRatio, pad+ch/2);
+  gCtx.rotate(-Math.PI/2);
+  gCtx.fillText('θ₂', 0, 0);
+  gCtx.restore();
+
+  // Trace
+  if (tracePoints.length < 2) return;
+
+  // Map th to pixel (wrap to [-pi, pi])
+  function mapX(th) { return pad + (((th + Math.PI) % (2*Math.PI) + 2*Math.PI) % (2*Math.PI)) / (2*Math.PI) * cw; }
+  function mapY(th) { return pad + ch - (((th + Math.PI) % (2*Math.PI) + 2*Math.PI) % (2*Math.PI)) / (2*Math.PI) * ch; }
+
+  const total = tracePoints.length;
+  gCtx.lineWidth = 1.2*devicePixelRatio;
+  gCtx.lineCap = 'round';
+
+  // Wrap-jump threshold: if pixel distance jumps > half canvas, it's a boundary wrap — skip it
+  const wrapThreshX = cw * 0.5;
+  const wrapThreshY = ch * 0.5;
+
+  // Draw as colored line segments with age-based alpha
+  for (let i = 1; i < total; i++) {
+    const px0 = mapX(tracePoints[i-1].th1), py0 = mapY(tracePoints[i-1].th2);
+    const px1 = mapX(tracePoints[i].th1),   py1 = mapY(tracePoints[i].th2);
+
+    // Skip this segment if it crosses a wrap boundary
+    if (Math.abs(px1 - px0) > wrapThreshX || Math.abs(py1 - py0) > wrapThreshY) continue;
+
+    const age = (i - 1) / (total - 1);
+    const alpha = 0.15 + age * 0.85;
+    const r = Math.round(123 + (0 - 123)*age);
+    const g2 = Math.round(94 + (255 - 94)*age);
+    const b = Math.round(167 + (179 - 167)*age);
+    gCtx.strokeStyle = `rgba(${r},${g2},${b},${alpha})`;
+    gCtx.beginPath();
+    gCtx.moveTo(px0, py0);
+    gCtx.lineTo(px1, py1);
+    gCtx.stroke();
+  }
+
+  // Current dot
+  if (total > 0) {
+    const last = tracePoints[total-1];
+    gCtx.beginPath();
+    gCtx.arc(mapX(last.th1), mapY(last.th2), 4*devicePixelRatio, 0, Math.PI*2);
+    gCtx.fillStyle = '#00ffb3';
+    gCtx.fill();
+  }
+}
+
+function drawAll() { drawPendulum(); drawGraph(); }
+
+// ─── Simulation Loop ───────────────────────────────────────────────────────────
+// Fixed physics timestep — small enough that RK4 stays stable even at high speed.
+const PHYSICS_DT = 0.003; // 3 ms per physics step
+
+let lastTime = null;
+let accumulator = 0;
+
+function loop(ts) {
+  if (!simRunning) return;
+  if (!lastTime) { lastTime = ts; accumulator = 0; }
+
+  let wallDt = (ts - lastTime) / 1000;
+  lastTime = ts;
+  // Clamp wall-clock delta so a tab that was hidden doesn't explode on resume
+  if (wallDt > 0.1) wallDt = 0.1;
+
+  // Accumulate simulated time (speed multiplier scales how fast sim runs)
+  accumulator += wallDt * speed;
+
+  // Drain accumulator with fixed physics steps
+  while (accumulator >= PHYSICS_DT) {
+    const s = [simState.th1, simState.th2, simState.w1, simState.w2];
+    const ns = rk4Step(s, PHYSICS_DT, L1, L2, m1, m2);
+    simState = { th1: ns[0], th2: ns[1], w1: ns[2], w2: ns[3] };
+    tracePoints.push({ th1: simState.th1, th2: simState.th2 });
+    if (!infiniteTrace && tracePoints.length > maxTrace) tracePoints.shift();
+    simTime += PHYSICS_DT;
+    accumulator -= PHYSICS_DT;
+  }
+
+  drawAll();
+  updateStats();
+  animId = requestAnimationFrame(loop);
+}
+
+function updateStats() {
+  const el = document.getElementById('stats');
+  el.textContent = `t=${simTime.toFixed(1)}s  pts=${tracePoints.length}`;
+}
+
+// ─── UI Controls ──────────────────────────────────────────────────────────────
+document.getElementById('btn-simulate').addEventListener('click', () => {
+  if (!simRunning) {
+    simRunning = true;
+    lastTime = null;
+    accumulator = 0;
+    document.getElementById('btn-simulate').textContent = '⏸ PAUSE';
+    document.getElementById('mode-badge').textContent = 'RUNNING';
+    document.getElementById('setup-hint').style.opacity = '0';
+    setupPhase = 0;
+    animId = requestAnimationFrame(loop);
+  } else {
+    simRunning = false;
+    document.getElementById('btn-simulate').textContent = '▶ SIMULATE';
+    document.getElementById('mode-badge').textContent = 'PAUSED';
+    if (animId) cancelAnimationFrame(animId);
+  }
+});
+
+document.getElementById('btn-reset').addEventListener('click', () => {
+  simRunning = false;
+  if (animId) cancelAnimationFrame(animId);
+  simState = { th1: Math.PI*0.6, th2: Math.PI*0.4, w1: 0, w2: 0 };
+  tracePoints = [];
+  simTime = 0;
+  setupPhase = 1;
+  document.getElementById('btn-simulate').textContent = '▶ SIMULATE';
+  document.getElementById('mode-badge').textContent = 'SETUP';
+  document.getElementById('setup-hint').style.opacity = '1';
+  document.getElementById('stats').textContent = '';
+  drawAll();
+});
+
+// Sliders — use explicit setters so let-scoped variables are updated correctly
+function bindSlider(id, vid, setter, fmt) {
+  const sl = document.getElementById(id);
+  const vl = document.getElementById(vid);
+  sl.addEventListener('input', () => {
+    setter(parseFloat(sl.value));
+    vl.textContent = fmt(sl.value);
+    if (!simRunning) drawAll();
+  });
+}
+bindSlider('sl1','vl1', v => { L1 = v; }, v => parseFloat(v).toFixed(2));
+bindSlider('sl2','vl2', v => { L2 = v; }, v => parseFloat(v).toFixed(2));
+bindSlider('sm1','vm1', v => { m1 = v; }, v => parseFloat(v).toFixed(1));
+bindSlider('sm2','vm2', v => { m2 = v; }, v => parseFloat(v).toFixed(1));
+bindSlider('sspeed','vspeed', v => { speed = v; }, v => parseFloat(v).toFixed(1)+'×');
+let infiniteTrace = false;
+
+document.getElementById('strace').addEventListener('input', function() {
+  if (infiniteTrace) return; // slider locked when infinite
+  maxTrace = parseInt(this.value);
+  document.getElementById('vtrace').textContent = maxTrace;
+});
+
+document.getElementById('btn-inf').addEventListener('click', function() {
+  infiniteTrace = !infiniteTrace;
+  this.classList.toggle('active', infiniteTrace);
+  const slider = document.getElementById('strace');
+  const val = document.getElementById('vtrace');
+  if (infiniteTrace) {
+    maxTrace = Infinity;
+    val.textContent = '∞';
+    slider.disabled = true;
+    slider.style.opacity = '0.3';
+  } else {
+    maxTrace = parseInt(slider.value);
+    val.textContent = maxTrace;
+    slider.disabled = false;
+    slider.style.opacity = '1';
+    // trim trace if it grew beyond the new limit
+    if (tracePoints.length > maxTrace) tracePoints.splice(0, tracePoints.length - maxTrace);
+  }
+});
+
+document.getElementById('btn-defaults').addEventListener('click', () => {
+  // Reset all sliders to default values
+  const defaults = { sl1: 0.7, sl2: 0.7, sm1: 1, sm2: 1, sspeed: 1, strace: 2000 };
+  L1 = 0.7; L2 = 0.7; m1 = 1; m2 = 1; speed = 1; maxTrace = 2000;
+
+  document.getElementById('sl1').value = 0.7;    document.getElementById('vl1').textContent = '0.70';
+  document.getElementById('sl2').value = 0.7;    document.getElementById('vl2').textContent = '0.70';
+  document.getElementById('sm1').value = 1;      document.getElementById('vm1').textContent = '1.0';
+  document.getElementById('sm2').value = 1;      document.getElementById('vm2').textContent = '1.0';
+  document.getElementById('sspeed').value = 1;   document.getElementById('vspeed').textContent = '1.0×';
+  document.getElementById('strace').value = 2000; document.getElementById('vtrace').textContent = '2000';
+  document.getElementById('strace').disabled = false;
+  document.getElementById('strace').style.opacity = '1';
+
+  // Reset ∞ mode if active
+  if (infiniteTrace) {
+    infiniteTrace = false;
+    document.getElementById('btn-inf').classList.remove('active');
+  }
+  if (!simRunning) drawAll();
+});
+
+// ─── Drag to position pendulum (setup mode) ───────────────────────────────────
+function getEventPos(e) {
+  const rect = pCanvas.getBoundingClientRect();
+  const touch = e.touches ? e.touches[0] : e;
+  return {
+    x: (touch.clientX - rect.left) * (pCanvas.width / rect.width),
+    y: (touch.clientY - rect.top) * (pCanvas.height / rect.height)
+  };
+}
+
+function onPointerDown(e) {
+  if (simRunning) return;
+  e.preventDefault();
+  const pos = getEventPos(e);
+  const { p, x1, y1, x2, y2 } = getPositions();
+  const s = scale();
+  const dpr = devicePixelRatio;
+
+  // Pick which bob is closest
+  const d1 = Math.hypot(pos.x - x1, pos.y - y1);
+  const d2 = Math.hypot(pos.x - x2, pos.y - y2);
+  const hitRadius = 30 * dpr;
+
+  if (d1 < hitRadius) { setupPhase = 1; isDragging = true; }
+  else if (d2 < hitRadius) { setupPhase = 2; isDragging = true; }
+  else isDragging = false;
+}
+
+function onPointerMove(e) {
+  if (!isDragging || simRunning) return;
+  e.preventDefault();
+  const pos = getEventPos(e);
+  const { p, x1, y1, s } = getPositions();
+
+  if (setupPhase === 1) {
+    const dx = pos.x - p.x, dy = pos.y - p.y;
+    simState.th1 = Math.atan2(dx, dy);
+    simState.w1 = 0;
+  } else if (setupPhase === 2) {
+    const dx = pos.x - x1, dy = pos.y - y1;
+    simState.th2 = Math.atan2(dx, dy);
+    simState.w2 = 0;
+  }
+  drawAll();
+}
+
+function onPointerUp(e) {
+  if (!isDragging) return;
+  isDragging = false;
+  if (setupPhase === 1) setupPhase = 2; // advance hint
+  drawAll();
+}
+
+// Mouse
+pCanvas.addEventListener('mousedown', onPointerDown);
+window.addEventListener('mousemove', onPointerMove);
+window.addEventListener('mouseup', onPointerUp);
+// Touch
+pCanvas.addEventListener('touchstart', onPointerDown, { passive: false });
+window.addEventListener('touchmove', onPointerMove, { passive: false });
+window.addEventListener('touchend', onPointerUp);
+
+// ─── Resize ───────────────────────────────────────────────────────────────────
+window.addEventListener('resize', resizeCanvases);
+resizeCanvases();
+drawAll();
+</script>
+</body>
+</html>
