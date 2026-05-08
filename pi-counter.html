@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>π — Infinite Digits</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #020408;
+    --grid: rgba(0,255,180,0.04);
+    --accent: #00ffb3;
+    --accent2: #00c8ff;
+    --dim: rgba(0,255,179,0.35);
+    --glow: 0 0 12px #00ffb3aa, 0 0 40px #00ffb355;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--accent);
+    font-family: 'Share Tech Mono', monospace;
+    min-height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Scanline overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.15) 2px,
+      rgba(0,0,0,0.15) 4px
+    );
+    pointer-events: none;
+    z-index: 100;
+  }
+
+  /* Grid background */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    width: min(900px, 95vw);
+  }
+
+  /* Title */
+  .title {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 900;
+    font-size: clamp(2.5rem, 8vw, 5rem);
+    letter-spacing: 0.15em;
+    color: var(--accent);
+    text-shadow: var(--glow);
+    line-height: 1;
+    animation: flicker 8s infinite;
+  }
+
+  .title span {
+    color: var(--accent2);
+    text-shadow: 0 0 14px #00c8ffcc, 0 0 40px #00c8ff55;
+  }
+
+  @keyframes flicker {
+    0%,96%,100% { opacity: 1; }
+    97% { opacity: 0.85; }
+    98% { opacity: 1; }
+    99% { opacity: 0.9; }
+  }
+
+  /* Counter */
+  .counter-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .counter-label {
+    font-size: 0.7rem;
+    letter-spacing: 0.3em;
+    color: var(--dim);
+    text-transform: uppercase;
+  }
+
+  .counter {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 900;
+    font-size: clamp(2rem, 10vw, 5.5rem);
+    color: #fff;
+    text-shadow: 0 0 8px #fff8, var(--glow);
+    letter-spacing: 0.08em;
+    min-width: 6ch;
+    text-align: center;
+    transition: color 0.05s;
+  }
+
+  /* Stream display */
+  .stream-wrap {
+    width: 100%;
+    border: 1px solid rgba(0,255,179,0.2);
+    border-radius: 4px;
+    background: rgba(0,255,179,0.03);
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stream-wrap::before {
+    content: 'DIGIT STREAM';
+    position: absolute;
+    top: -1px;
+    left: 16px;
+    font-size: 0.6rem;
+    letter-spacing: 0.25em;
+    color: var(--dim);
+    background: var(--bg);
+    padding: 0 6px;
+  }
+
+  #stream {
+    font-size: clamp(0.8rem, 2vw, 1rem);
+    line-height: 1.7;
+    word-break: break-all;
+    max-height: 140px;
+    overflow: hidden;
+    color: rgba(0,255,179,0.6);
+  }
+
+  #stream .current-digit {
+    color: #fff;
+    text-shadow: 0 0 8px #fff;
+    background: rgba(0,255,179,0.15);
+    border-radius: 2px;
+  }
+
+  /* Controls */
+  .controls {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+  }
+
+  button {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.85rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    border: 1px solid var(--accent);
+    background: transparent;
+    color: var(--accent);
+    padding: 10px 28px;
+    cursor: pointer;
+    transition: all 0.15s;
+    border-radius: 2px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  button::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--accent);
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+
+  button:hover {
+    color: var(--bg);
+    box-shadow: var(--glow);
+  }
+
+  button:hover::after { opacity: 1; }
+  button:hover span { position: relative; z-index: 1; color: var(--bg); }
+  button span { position: relative; z-index: 1; }
+
+  button.stop {
+    border-color: #ff4466;
+    color: #ff4466;
+  }
+  button.stop:hover { color: var(--bg); box-shadow: 0 0 12px #ff4466aa; }
+  button.stop::after { background: #ff4466; }
+
+  /* Speed control */
+  .speed-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.7rem;
+    letter-spacing: 0.2em;
+    color: var(--dim);
+  }
+
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 100px;
+    height: 2px;
+    background: rgba(0,255,179,0.2);
+    outline: none;
+    border-radius: 2px;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 6px var(--accent);
+    cursor: pointer;
+  }
+
+  /* Status bar */
+  .status {
+    font-size: 0.65rem;
+    letter-spacing: 0.25em;
+    color: var(--dim);
+    display: flex;
+    gap: 32px;
+  }
+
+  .status span { color: var(--accent2); }
+
+  /* Pulse dot */
+  .pulse {
+    display: inline-block;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 6px var(--accent);
+    animation: pulse 1s infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+  .pulse.stopped { background: #ff4466; box-shadow: 0 0 6px #ff4466; animation: none; }
+
+  @keyframes pulse {
+    0%,100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.7); }
+  }
+
+  /* Corner decorations */
+  .corner {
+    position: fixed;
+    width: 60px; height: 60px;
+    z-index: 5;
+    opacity: 0.4;
+  }
+  .corner::before, .corner::after {
+    content: '';
+    position: absolute;
+    background: var(--accent);
+  }
+  .corner::before { width: 100%; height: 1px; top: 0; left: 0; }
+  .corner::after  { width: 1px; height: 100%; top: 0; left: 0; }
+  .corner.tr { top: 16px; right: 16px; transform: scaleX(-1); }
+  .corner.tl { top: 16px; left: 16px; }
+  .corner.bl { bottom: 16px; left: 16px; transform: scaleY(-1); }
+  .corner.br { bottom: 16px; right: 16px; transform: scale(-1); }
+</style>
+</head>
+<body>
+
+<div class="corner tl"></div>
+<div class="corner tr"></div>
+<div class="corner bl"></div>
+<div class="corner br"></div>
+
+<div class="container">
+  <div class="title">π <span>INFINITE</span></div>
+
+  <div class="counter-wrap">
+    <div class="counter-label">digits computed</div>
+    <div class="counter" id="counter">0</div>
+  </div>
+
+  <div class="stream-wrap">
+    <div id="stream">3.&thinsp;</div>
+  </div>
+
+  <div class="controls">
+    <button id="startBtn" onclick="startStop()"><span id="btnLabel">START</span></button>
+    <button class="stop" onclick="resetAll()"><span>RESET</span></button>
+    <div class="speed-wrap">
+      SPEED
+      <input type="range" id="speedRange" min="1" max="200" value="50">
+    </div>
+  </div>
+
+  <div class="status">
+    <div><span class="pulse" id="pulseDot"></span>STATUS: <span id="statusTxt">IDLE</span></div>
+    <div>ALGORITHM: <span>BBP SPIGOT</span></div>
+    <div>PRECISION: <span>ARBITRARY</span></div>
+  </div>
+</div>
+
+<script>
+// ─── Big-integer BBP spigot for π (Jeremy Gibbons' streaming spigot)
+// Produces one decimal digit of π at a time, indefinitely.
+// Reference: Gibbons (2004) "Unbounded Spigot Algorithms for the Digits of Pi"
+
+class PiSpigot {
+  constructor() { this.reset(); }
+
+  reset() {
+    // State: (q, r, t, k, n, l) as BigInt
+    this.q = 1n;
+    this.r = 0n;
+    this.t = 1n;
+    this.k = 1n;
+    this.n = 3n;
+    this.l = 3n;
+    this.first = true; // emit "3." prefix
+  }
+
+  // Returns next digit (0–9) as a number
+  next() {
+    // Iterate until we can safely output a digit
+    while (true) {
+      if (4n * this.q + this.r - this.t < this.n * this.t) {
+        const digit = Number(this.n);
+        const nr = 10n * (this.r - this.n * this.t);
+        this.n = ((10n * (3n * this.q + this.r)) / this.t) - 10n * this.n;
+        this.q *= 10n;
+        this.r = nr;
+        return digit;
+      } else {
+        const nr = (2n * this.q + this.r) * this.l;
+        const nn = (this.q * (7n * this.k) + 2n + this.r * this.l) / (this.t * this.l);
+        this.q *= this.k;
+        this.t *= this.l;
+        this.l += 2n;
+        this.k += 1n;
+        this.n = nn;
+        this.r = nr;
+      }
+    }
+  }
+}
+
+// ─── State
+const spigot = new PiSpigot();
+let running = false;
+let frameId = null;
+let count = 0;
+let digits = '3.'; // full digit string
+const MAX_DISPLAY = 800; // chars to show in stream
+
+const counterEl = document.getElementById('counter');
+const streamEl  = document.getElementById('stream');
+const btnLabel  = document.getElementById('btnLabel');
+const statusTxt = document.getElementById('statusTxt');
+const pulseDot  = document.getElementById('pulseDot');
+const speedRange= document.getElementById('speedRange');
+
+// First digit (3) is implicit; skip it from spigot
+// Actually emit from index 0 — first digit is '3', rest are post-decimal
+let digitIndex = 0; // 0 = '3', 1 = '.' (separator), 2+ = actual spigot digits
+
+function digitsPerFrame() {
+  const v = parseInt(speedRange.value);
+  // 1→1 dig/frame, 200→500 digs/frame
+  return Math.max(1, Math.round((v / 200) ** 2 * 500));
+}
+
+function formatCounter(n) {
+  return n.toLocaleString('en-US');
+}
+
+function renderStream() {
+  const tail = digits.slice(-MAX_DISPLAY);
+  // Highlight last char
+  const body = tail.slice(0, -1);
+  const last = tail.slice(-1);
+  streamEl.innerHTML = body + `<span class="current-digit">${last}</span>`;
+}
+
+function tick() {
+  if (!running) return;
+
+  const dpf = digitsPerFrame();
+  for (let i = 0; i < dpf; i++) {
+    const d = spigot.next();
+    digits += d;
+    count++;
+  }
+
+  counterEl.textContent = formatCounter(count);
+  renderStream();
+
+  frameId = requestAnimationFrame(tick);
+}
+
+function startStop() {
+  if (running) {
+    running = false;
+    cancelAnimationFrame(frameId);
+    btnLabel.textContent = 'RESUME';
+    statusTxt.textContent = 'PAUSED';
+    pulseDot.classList.add('stopped');
+  } else {
+    running = true;
+    btnLabel.textContent = 'PAUSE';
+    statusTxt.textContent = 'RUNNING';
+    pulseDot.classList.remove('stopped');
+    tick();
+  }
+}
+
+function resetAll() {
+  running = false;
+  cancelAnimationFrame(frameId);
+  spigot.reset();
+  count = 0;
+  digits = '3.';
+  counterEl.textContent = '0';
+  streamEl.innerHTML = '3.&thinsp;';
+  btnLabel.textContent = 'START';
+  statusTxt.textContent = 'IDLE';
+  pulseDot.classList.add('stopped');
+}
+
+// Init pulse as stopped
+pulseDot.classList.add('stopped');
+</script>
+</body>
+</html>
